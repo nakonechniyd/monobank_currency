@@ -1,16 +1,50 @@
+from typing import Iterable
+from typing import Iterator
 from dataclasses import dataclass
 from decimal import Decimal
+from datetime import datetime
 
 import gspread
+from gspread import Worksheet
+from gspread import Spreadsheet
+from gspread.exceptions import WorksheetNotFound
 from oauth2client.service_account import ServiceAccountCredentials
+
+import monobank
+
 
 CURRENCY_KEY = "{}:{}".format
 
-scope = [
+HEADER_FIELDS = [
+    "currencyCodeA",
+    "currencyCodeB",
+    "date",
+    "rateBuy",
+    "rateSell",
+    "rateCross",
+]
+
+CURRENCY_MAP = {
+    980: 'uah',
+    840: 'usd',
+    978: 'eur',
+    643: 'rub',
+    985: 'pln',
+}
+
+SCOPE = [
     "https://www.googleapis.com/auth/spreadsheets",
-    "https://www.googleapis.com/auth/drive.file",
+    "https://www.googleapis.com/auth/drive.file",  # ?
     "https://www.googleapis.com/auth/drive",
 ]
+
+
+class SheetInfo():
+    def __init__(self, worksheet: Worksheet):
+        self._worksheet = worksheet
+
+    def get_currency_rows_count(self) -> int:
+        return int(self._worksheet.get('A1').first())
 
 
 @dataclass(frozen=True)
@@ -45,10 +79,7 @@ class CurrencyRow:
         )
 
 
-# EMPTY_CURRENCY_ROW = CurrencyRow(0, 0, 0)
-
-
-def get_previous_data(worksheet) -> dict[str, CurrencyRow]:
+def fetch_previous_data(worksheet: Worksheet) -> dict[str, CurrencyRow]:
     """
     Get mapping of previous currency values
     """
@@ -59,41 +90,43 @@ def get_previous_data(worksheet) -> dict[str, CurrencyRow]:
     }
 
 
-HEADER_FIELDS = [
-    "currencyCodeA",
-    "currencyCodeB",
-    "date",
-    "rateBuy",
-    "rateSell",
-    "rateCross",
-]
+def write_worksheet_row(
+    start_range: str,
+    data: Iterable[CurrencyRow]
+) -> Iterator[dict]:
+    """
+    Write rows as batch update
+    """
+
+    # split A1:F1 by parts: l - letter, n - number, f - first, l - last
+    lf, nf, __, ll, nl = start_range
+
+    for num, row in enumerate(data, start=int(nf)):
+        yield {
+            'range': f'{lf}{num}:{ll}{num}',
+            'values': [[str(getattr(row, hf)) for hf in HEADER_FIELDS]],
+        }
 
 
-CURRENCY_MAP = {
-    980: 'uah',
-    840: 'usd',
-    978: 'eur',
-    643: 'rub',
-    985: 'pln',
-}
-
-
-def write_previous_data(worksheet, data: dict[str, CurrencyRow]):
-    # header
+def write_previous_data(worksheet: Worksheet, data: Iterable[CurrencyRow]):
+    # write header
     worksheet.update('A1:F1', [HEADER_FIELDS])
-    # all rows at once
+
+    # write all rows at once
     worksheet.batch_update(
-        [
-            {
-                'range': f'A{row_num}:F{row_num}',
-                'values': [[str(getattr(row, hf)) for hf in HEADER_FIELDS]],
-            }
-            for row_num, row in enumerate(data.values(), start=2)
-        ]
+        write_worksheet_row('A2:F2', data),
     )
 
 
-def is_modified(a: CurrencyRow, b: CurrencyRow) -> bool:
+def write_currency_data(worksheet: Worksheet, row: int, data: Iterable[CurrencyRow]):
+
+    # write all rows at once
+    worksheet.batch_update(
+        write_worksheet_row(f'A{row}:F{row}', data),
+    )
+
+
+def is_currency_changed(a: CurrencyRow, b: CurrencyRow) -> bool:
     """
     Are previous values different from actual currency
     """
@@ -105,25 +138,36 @@ def is_modified(a: CurrencyRow, b: CurrencyRow) -> bool:
 
 
 # TODO: debug local data
-import data
+# import data
 
 
 # Assign credentials ann path of style sheet
 creds = ServiceAccountCredentials.from_json_keyfile_name(
-    "credentials.json", scope
+    "credentials.json", SCOPE,
 )
 client = gspread.authorize(creds)
 
 spreadsheet = client.open("monobank_currency_info")
 
-# previous data fetching
-previous_data_worksheet = spreadsheet.worksheet("previous_data")
-previous_data = get_previous_data(previous_data_worksheet)
+try:
+    previous_data_worksheet = spreadsheet.worksheet("previous_data")
+except WorksheetNotFound:
+    print('Previous data worksheet not found')
+    exit(1)
+
+try:
+    currency_worksheet = spreadsheet.worksheet(f"{datetime.now().year}")
+except WorksheetNotFound:
+    print('Currency worksheet not found')
+    exit(1)
+
+currency_update_data = []
+previous_data = fetch_previous_data(previous_data_worksheet)
 
 rewrite_previous_worksheet = False
 
 # api currency processing
-for currency in data.currency_data:
+for currency in monobank.get_currency():
     currency_row = CurrencyRow.from_api(currency)
 
     # filter only interesting currency
@@ -131,18 +175,29 @@ for currency in data.currency_data:
         continue
 
     key = CURRENCY_KEY(currency_row.currencyCodeA, currency_row.currencyCodeB)
-
     previous_currency_row = previous_data.get(key)
-    if previous_currency_row:
-        if is_modified(previous_currency_row, currency_row):
-            print('NEW currency', currency_row)
-    else:
+
+    update_currency = (
+        not previous_currency_row
+        or is_currency_changed(previous_currency_row, currency_row)
+    )
+    if update_currency:
         rewrite_previous_worksheet = True
-        print('UPDATE previous', currency_row)
-        print('NEW currency', currency_row)
+        print('Previous currency update:', currency_row)
         previous_data[key] = currency_row
 
-# rewrite worksheet `previous_data`
+        print('Currency update:', currency_row)
+        currency_update_data.append(currency_row)
+
+# rewrite worksheets
+if currency_update_data:
+    sheet_info = SheetInfo(spreadsheet.worksheet("info"))
+
+    start_row = sheet_info.get_currency_rows_count() + 1
+
+    print('Update currency worksheet')
+    write_currency_data(currency_worksheet, start_row, currency_update_data)
+
 if rewrite_previous_worksheet:
     print('Update previous worksheet')
-    write_previous_data(previous_data_worksheet, previous_data)
+    write_previous_data(previous_data_worksheet, previous_data.values())
