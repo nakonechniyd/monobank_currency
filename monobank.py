@@ -1,4 +1,3 @@
-from typing import Iterator
 from decimal import Decimal
 
 import requests
@@ -6,16 +5,18 @@ import requests
 import currency
 
 
-def get_currency() -> Iterator[currency.CurrencyRow]:
-    resp = requests.get('https://api.monobank.ua/bank/currency')
+def get_currency() -> list[currency.CurrencyRow]:
+    resp = requests.get("https://api.monobank.ua/bank/currency")
     if not resp.ok:
-        print('Not 200 from monobank')
         return []
+
+    result = []
     for item in resp.json():
         row = get_currency_row(item)
         if row.currencyCodeA not in currency.CURRENCY_MAP:
             continue
-        yield row
+        result.append(row)
+    return result
 
 
 def get_currency_row(data: dict) -> currency.CurrencyRow:
@@ -25,5 +26,5 @@ def get_currency_row(data: dict) -> currency.CurrencyRow:
         date=int(data["date"]),
         rateBuy=Decimal(str(data.get("rateBuy", "0.0"))),
         rateSell=Decimal(str(data.get("rateSell", "0.0"))),
-        rateCross=Decimal(str(data.get("rateCross", '0'))),
+        rateCross=Decimal(str(data.get("rateCross", "0.0"))),
     )

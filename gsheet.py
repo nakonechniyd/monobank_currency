@@ -1,11 +1,15 @@
+import logging
 from typing import Iterable
 from typing import Iterator
 from decimal import Decimal
+from pathlib import Path
 
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 
 import currency
+
+log = logging.getLogger(__name__)
 
 
 HEADER_FIELDS = [
@@ -26,17 +30,18 @@ SCOPE = [
 CURRENCY_KEY = "{}:{}".format
 
 
-class SheetInfo():
+class SheetInfo:
     def __init__(self, worksheet: gspread.Worksheet):
         self._worksheet = worksheet
 
     def get_currency_rows_count(self) -> int:
-        return int(self._worksheet.get('A1').first())
+        return int(self._worksheet.get("A1").first())
 
 
 def get_client():
     creds = ServiceAccountCredentials.from_json_keyfile_name(
-        "credentials.json", SCOPE,
+        Path("data") / "credentials.json",
+        SCOPE,
     )
     return gspread.authorize(creds)
 
@@ -48,7 +53,7 @@ def get_worksheet(
     try:
         return spreadsheet.worksheet(name)
     except gspread.exceptions.WorksheetNotFound as e:
-        print(f"{name} worksheet doesn't found")
+        log.info(f"{name} worksheet doesn't found")
         raise e
 
 
@@ -81,17 +86,16 @@ def write_previous_data(
     data: Iterable[currency.CurrencyRow],
 ):
     # write header
-    worksheet.update('A1:F1', [HEADER_FIELDS])
+    worksheet.update("A1:F1", [HEADER_FIELDS])
 
     # write all rows at once
     worksheet.batch_update(
-        write_worksheet_row('A2:F2', data),
+        write_worksheet_row("A2:F2", data),
     )
 
 
 def write_worksheet_row(
-    start_range: str,
-    data: Iterable[currency.CurrencyRow]
+    start_range: str, data: Iterable[currency.CurrencyRow]
 ) -> Iterator[dict]:
     """
     Write rows as batch update
@@ -103,8 +107,8 @@ def write_worksheet_row(
 
     for num, row in enumerate(data, start=int(nf)):
         yield {
-            'range': f'{lf}{num}:{ll}{num}',
-            'values': [[str(getattr(row, hf)) for hf in HEADER_FIELDS]],
+            "range": f"{lf}{num}:{ll}{num}",
+            "values": [[str(getattr(row, hf)) for hf in HEADER_FIELDS]],
         }
 
 
@@ -116,5 +120,5 @@ def write_currency_data(
 
     # write all rows at once
     worksheet.batch_update(
-        write_worksheet_row(f'A{row}:F{row}', data),
+        write_worksheet_row(f"A{row}:F{row}", data),
     )

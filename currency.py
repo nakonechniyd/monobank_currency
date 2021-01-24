@@ -3,11 +3,11 @@ from decimal import Decimal
 
 
 CURRENCY_MAP = {
-    980: 'uah',
-    840: 'usd',
-    978: 'eur',
-    643: 'rub',
-    985: 'pln',
+    980: "uah",
+    840: "usd",
+    978: "eur",
+    643: "rub",
+    985: "pln",
 }
 
 
