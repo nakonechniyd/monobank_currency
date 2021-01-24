@@ -1,4 +1,5 @@
 .venv
+.lets
 __pycache__
 data
 

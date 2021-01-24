@@ -1,0 +1,10 @@
+.venv
+.lets
+.git
+__pycache__
+data
+
+.gitignore
+.dockerignore
+Dockerfile
+lets.yaml

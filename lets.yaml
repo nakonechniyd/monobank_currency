@@ -1,0 +1,21 @@
+shell: /bin/sh
+
+commands:
+  build:
+    description: Build docker image 
+    cmd:
+      docker build --tag monobank-currency:latest .
+
+  shell:
+    description: Run shell inside container
+    depends:
+      - build
+    cmd:
+      docker run --rm -it -v $(pwd)/data:/app/data monobank-currency:latest /bin/sh
+
+  run:
+    description: Run app inside docker container
+    depends:
+      - build
+    cmd:
+      docker run --rm -v $(pwd)/data:/app/data monobank-currency:latest python /app/run.py

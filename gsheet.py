@@ -39,10 +39,13 @@ class SheetInfo:
 
 
 def get_client():
-    creds = ServiceAccountCredentials.from_json_keyfile_name(
-        Path("data") / "credentials.json",
-        SCOPE,
-    )
+    try:
+        creds = ServiceAccountCredentials.from_json_keyfile_name(
+            Path("data") / "credentials.json",
+            SCOPE,
+        )
+    except FileNotFoundError:
+        return None
     return gspread.authorize(creds)
 
 

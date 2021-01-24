@@ -13,7 +13,7 @@ logging.basicConfig(
     format="[%(asctime)s] %(levelname)-8s %(name)-12s %(message)s",
     filename=(Path("data") / "app.log"),
 )
-log = logging.getLogger('app')
+log = logging.getLogger("app")
 
 
 def main():
@@ -25,6 +25,10 @@ def main():
         log.info("Currency data from monobank is empty")
 
     client = gsheet.get_client()
+    if not client:
+        log.error("File with credentials not found.")
+        return
+
     spreadsheet = client.open("monobank_currency_info")
 
     previous_data_worksheet = gsheet.get_worksheet(spreadsheet, "previous_data")
