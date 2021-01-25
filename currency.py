@@ -27,6 +27,6 @@ def is_currency_changed(a: CurrencyRow, b: CurrencyRow) -> bool:
     """
     return not (
         a.rateBuy == b.rateBuy
-        or a.rateSell == b.rateSell
-        or a.rateCross == b.rateCross
+        and a.rateSell == b.rateSell
+        and a.rateCross == b.rateCross
     )
