@@ -7,8 +7,7 @@ import currency
 
 def get_currency() -> list[currency.CurrencyRow]:
     resp = requests.get("https://api.monobank.ua/bank/currency")
-    if not resp.ok:
-        return []
+    resp.raise_for_status()
 
     result = []
     for item in resp.json():
