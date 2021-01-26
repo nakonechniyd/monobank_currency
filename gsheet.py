@@ -129,4 +129,5 @@ def write_currency_data(
     # write all rows at once
     worksheet.batch_update(
         write_worksheet_row(f"A{row}:F{row}", data),
+        value_input_option='RAW',
     )
