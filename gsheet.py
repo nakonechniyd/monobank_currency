@@ -1,4 +1,6 @@
 import logging
+import re
+
 from typing import Iterable
 from typing import Iterator
 from decimal import Decimal
@@ -103,9 +105,13 @@ def write_worksheet_row(
     Write rows as batch update
     """
 
-    # split A1:F1 by parts
+    # split A10:F10 by parts
     # l - letter; n - number; f - first; l - last;
-    lf, nf, __, ll, nl = start_range
+    lf, nf, ll, nl = re.search(
+        r'([A-Z]*)(\d*):([A-Z]*)(\d*)',
+        start_range,
+        re.I,
+    ).groups()
 
     for num, row in enumerate(data, start=int(nf)):
         yield {
