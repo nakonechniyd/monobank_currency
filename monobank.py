@@ -1,16 +1,22 @@
 from decimal import Decimal
+import logging
 
 import requests
 
 import currency
 
+log = logging.getLogger(__name__) 
+
 
 def get_currency() -> list[currency.CurrencyRow]:
     resp = requests.get("https://api.monobank.ua/bank/currency")
+    log.info(f'monobank api resp status: {resp.status_code}, {resp.reason}')
     resp.raise_for_status()
 
+    items = resp.json()
+    log.info(f'monobank api got: {len(items)} items')
     result = []
-    for item in resp.json():
+    for item in items:
         row = get_currency_row(item)
         if row.currencyCodeA not in currency.CURRENCY_MAP:
             continue
