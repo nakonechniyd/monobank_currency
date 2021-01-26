@@ -94,15 +94,15 @@ def write_previous_data(
 
     # write all rows at once
     worksheet.batch_update(
-        write_worksheet_row("A2:F2", data),
+        get_rows_data("A2:F2", data),
     )
 
 
-def write_worksheet_row(
+def get_rows_data(
     start_range: str, data: Iterable[currency.CurrencyRow]
 ) -> Iterator[dict]:
     """
-    Write rows as batch update
+    Generate rows data for batch update
     """
 
     # split A10:F10 by parts
@@ -128,6 +128,6 @@ def write_currency_data(
 
     # write all rows at once
     worksheet.batch_update(
-        write_worksheet_row(f"A{row}:F{row}", data),
+        get_rows_data(f"A{row}:F{row}", data),
         value_input_option='RAW',
     )
