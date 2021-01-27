@@ -95,6 +95,7 @@ def write_previous_data(
     # write all rows at once
     worksheet.batch_update(
         get_rows_data("A2:F2", data),
+        value_input_option='USER_ENTERED',
     )
 
 
@@ -129,5 +130,5 @@ def write_currency_data(
     # write all rows at once
     worksheet.batch_update(
         get_rows_data(f"A{row}:F{row}", data),
-        value_input_option='RAW',
+        value_input_option='USER_ENTERED',
     )
