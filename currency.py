@@ -10,6 +10,8 @@ CURRENCY_MAP = {
     985: "pln",
 }
 
+ONE_PENNY = Decimal("0.01")
+
 
 @dataclass(frozen=True)
 class CurrencyRow:
@@ -23,10 +25,10 @@ class CurrencyRow:
 
 def is_currency_changed(a: CurrencyRow, b: CurrencyRow) -> bool:
     """
-    Does previous value different from actual currency
+    Does previous value different from actual currency at least 0.01
     """
-    return not (
-        a.rateBuy == b.rateBuy
-        and a.rateSell == b.rateSell
-        and a.rateCross == b.rateCross
+    return (
+        abs(a.rateBuy - b.rateBuy) >= ONE_PENNY
+        or abs(a.rateSell - b.rateSell) >= ONE_PENNY
+        or abs(a.rateCross - b.rateCross) >= ONE_PENNY
     )
