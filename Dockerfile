@@ -2,7 +2,6 @@ FROM python:3.9.1-alpine3.12 as base
 RUN apk add --update \
     tzdata
 
-
 FROM python:3.9.1-alpine3.12 as production
 WORKDIR /app
 RUN mkdir data
